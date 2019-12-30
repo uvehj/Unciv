@@ -154,25 +154,27 @@ class GameInfo {
         val viableTiles = tileMap.values.filter {
             !it.getBaseTerrain().impassable && it.isLand
                     && it.terrainFeature==null
+                    && it.naturalWonder==null
                     && it !in tilesWithin3ofExistingEncampment
                     && it !in allViewableTiles
         }
         if (viableTiles.isEmpty()) return null // no place for more barbs =(
         val tile = viableTiles.random()
         tile.improvement = Constants.barbarianEncampment
+        notifyCivsOfBarbarianEncampment(tile)
         return tile
     }
 
     fun placeBarbarianUnit(tileToPlace: TileInfo) {
         // if we don't make this into a separate list then the retain() will happen on the Tech keys,
         // which effectively removes those techs from the game and causes all sorts of problems
-        val allResearchedTechs = ruleSet.Technologies.keys.toMutableList()
+        val allResearchedTechs = ruleSet.technologies.keys.toMutableList()
         for (civ in civilizations.filter { !it.isBarbarian() && !it.isDefeated() }) {
             allResearchedTechs.retainAll(civ.tech.techsResearched)
         }
         val barbarianCiv = getBarbarianCivilization()
         barbarianCiv.tech.techsResearched = allResearchedTechs.toHashSet()
-        val unitList = ruleSet.Units.values
+        val unitList = ruleSet.units.values
                 .filter { !it.unitType.isCivilian()}
                 .filter { it.isBuildable(barbarianCiv) }
 
@@ -185,6 +187,16 @@ class GameInfo {
         else unit = landUnits.random().name
 
         tileMap.placeUnitNearTile(tileToPlace.position, unit, getBarbarianCivilization())
+    }
+
+    /**
+     * [CivilizationInfo.addNotification][Add a notification] to every civilization that have
+     * adopted Honor policy and have explored the [tile] where the Barbarian Encampent has spawned.
+     */
+    fun notifyCivsOfBarbarianEncampment(tile: TileInfo) {
+        civilizations.filter { it.policies.isAdopted("Honor")
+                && it.exploredTiles.contains(tile.position) }
+                .forEach { it.addNotification("A new barbarian encampment has spawned!", tile.position, Color.RED) }
     }
 
     // All cross-game data which needs to be altered (e.g. when removing or changing a name of a building/tech)
@@ -218,7 +230,7 @@ class GameInfo {
             getCurrentPlayerCivilization().playerType=PlayerType.Human
         if(getCurrentPlayerCivilization().difficulty!="Chieftain")
             difficulty= getCurrentPlayerCivilization().difficulty
-        difficultyObject = ruleSet.Difficulties[difficulty]!!
+        difficultyObject = ruleSet.difficulties[difficulty]!!
 
         // We have to remove all deprecated buildings from all cities BEFORE we update a single one, or run setTransients on the civs,
         // because updating leads to getting the building uniques from the civ info,

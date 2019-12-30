@@ -7,19 +7,12 @@ import com.badlogic.gdx.scenes.scene2d.ui.*
 import com.badlogic.gdx.scenes.scene2d.utils.ChangeListener
 import com.badlogic.gdx.utils.Array
 import com.unciv.UncivGame
-import com.unciv.models.ruleset.Ruleset
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.utils.*
 import com.unciv.ui.worldscreen.WorldScreen
 import kotlin.concurrent.thread
 
-class Language(val language:String, ruleset: Ruleset){
-    val percentComplete:Int
-    init{
-        val availableTranslations = ruleset.Translations.count { it.value.containsKey(language) }
-        if(language=="English") percentComplete = 100
-        else percentComplete = (availableTranslations*100 / ruleset.Translations.size)
-    }
+class Language(val language:String, val percentComplete:Int){
     override fun toString(): String {
         val spaceSplitLang = language.replace("_"," ")
         return "$spaceSplitLang- $percentComplete%"
@@ -44,6 +37,8 @@ class WorldScreenOptionsTable(val worldScreen:WorldScreen) : PopupTable(worldScr
         val innerTable = PopupTable(screen) // cheating, to get the old code to fit inside a Scroll =)
         innerTable.background = null
 
+        innerTable.add("Display options".toLabel(fontSize = 24)).colspan(2).row()
+
         innerTable.add("Show worked tiles".toLabel())
         innerTable.addButton(if (settings.showWorkedTiles) "Yes".tr() else "No".tr()) {
             settings.showWorkedTiles= !settings.showWorkedTiles
@@ -56,34 +51,10 @@ class WorldScreenOptionsTable(val worldScreen:WorldScreen) : PopupTable(worldScr
             update()
         }
 
-        innerTable.add("Check for idle units".toLabel())
-        innerTable.addButton(if (settings.checkForDueUnits) "Yes".tr() else "No".tr()) {
-            settings.checkForDueUnits = !settings.checkForDueUnits
-            update()
-        }
-
-        innerTable.add("Move units with a single tap".toLabel())
-        innerTable.addButton(if (settings.singleTapMove) "Yes".tr() else "No".tr()) {
-            settings.singleTapMove = !settings.singleTapMove
-            update()
-        }
 
         innerTable.add("Show tutorials".toLabel())
         innerTable.addButton(if (settings.showTutorials) "Yes".tr() else "No".tr()) {
             settings.showTutorials = !settings.showTutorials
-            update()
-        }
-
-
-        innerTable.add("Auto-assign city production".toLabel())
-        innerTable.addButton(if (settings.autoAssignCityProduction) "Yes".tr() else "No".tr()) {
-            settings.autoAssignCityProduction = !settings.autoAssignCityProduction
-            update()
-        }
-
-        innerTable.add("Auto-build roads".toLabel())
-        innerTable.addButton(if (settings.autoBuildingRoads) "Yes".tr() else "No".tr()) {
-            settings.autoBuildingRoads = !settings.autoBuildingRoads
             update()
         }
 
@@ -105,19 +76,50 @@ class WorldScreenOptionsTable(val worldScreen:WorldScreen) : PopupTable(worldScr
             update()
         }
 
+        addLanguageSelectBox(innerTable)
+
+        addResolutionSelectBox(innerTable)
+
+        addTileSetSelectBox(innerTable)
+
+        innerTable.add("Gameplay options".toLabel(fontSize = 24)).colspan(2).row()
+
+
+        innerTable.add("Check for idle units".toLabel())
+        innerTable.addButton(if (settings.checkForDueUnits) "Yes".tr() else "No".tr()) {
+            settings.checkForDueUnits = !settings.checkForDueUnits
+            update()
+        }
+
+        innerTable.add("Move units with a single tap".toLabel())
+        innerTable.addButton(if (settings.singleTapMove) "Yes".tr() else "No".tr()) {
+            settings.singleTapMove = !settings.singleTapMove
+            update()
+        }
+
+        innerTable.add("Auto-assign city production".toLabel())
+        innerTable.addButton(if (settings.autoAssignCityProduction) "Yes".tr() else "No".tr()) {
+            settings.autoAssignCityProduction = !settings.autoAssignCityProduction
+            update()
+        }
+
+        innerTable.add("Auto-build roads".toLabel())
+        innerTable.addButton(if (settings.autoBuildingRoads) "Yes".tr() else "No".tr()) {
+            settings.autoBuildingRoads = !settings.autoBuildingRoads
+            update()
+        }
+
+
         innerTable.add("Enable nuclear weapons".toLabel())
         innerTable.addButton(if (settings.nuclearWeaponEnabled) "Yes".tr() else "No".tr()) {
             settings.nuclearWeaponEnabled = !settings.nuclearWeaponEnabled
             update()
         }
 
-        addLanguageSelectBox(innerTable)
-
-        addResolutionSelectBox(innerTable)
-
         addAutosaveTurnsSelectBox(innerTable)
 
-        addTileSetSelectBox(innerTable)
+        innerTable.add("Other options".toLabel(fontSize = 24)).colspan(2).row()
+
 
         addSoundEffectsVolumeSlider(innerTable)
         addMusicVolumeSlider(innerTable)
@@ -262,13 +264,14 @@ class WorldScreenOptionsTable(val worldScreen:WorldScreen) : PopupTable(worldScr
     }
 
     private fun addLanguageSelectBox(innerTable: PopupTable) {
-        innerTable.add("Language".toLabel())
         val languageSelectBox = SelectBox<Language>(skin)
         val languageArray = Array<Language>()
-        val ruleSet = worldScreen.gameInfo.ruleSet
-        ruleSet.Translations.getLanguages().map { Language(it, ruleSet) }
+        UncivGame.Current.translations.percentCompleteOfLanguages
+                .map { Language(it.key, if(it.key=="English") 100 else it.value) }
                 .sortedByDescending { it.percentComplete }
                 .forEach { languageArray.add(it) }
+        if(languageArray.size==0) return
+        innerTable.add("Language".toLabel())
         languageSelectBox.items = languageArray
         val matchingLanguage = languageArray.firstOrNull { it.language == UncivGame.Current.settings.language }
         languageSelectBox.selected = if (matchingLanguage != null) matchingLanguage else languageArray.first()
@@ -284,23 +287,13 @@ class WorldScreenOptionsTable(val worldScreen:WorldScreen) : PopupTable(worldScr
             }
         })
 
-        if (languageSelectBox.selected.percentComplete != 100) {
-            innerTable.add("Missing translations:".toLabel()).pad(5f).colspan(2).row()
-            val missingTextSelectBox = SelectBox<String>(skin)
-            val missingTextArray = Array<String>()
-            val currentLanguage = UncivGame.Current.settings.language
-            ruleSet.Translations.filter { !it.value.containsKey(currentLanguage) }
-                    .forEach { missingTextArray.add(it.key) }
-            missingTextSelectBox.items = missingTextArray
-            missingTextSelectBox.selected = "Untranslated texts"
-            innerTable.add(missingTextSelectBox).pad(10f)
-                    .width(screen.stage.width / 2).colspan(2).row()
-        }
     }
 
     fun selectLanguage(){
         UncivGame.Current.settings.language = selectedLanguage
         UncivGame.Current.settings.save()
+
+        UncivGame.Current.translations.tryReadTranslationForCurrentLanguage()
         CameraStageBaseScreen.resetFonts() // to load chinese characters if necessary
         UncivGame.Current.worldScreen = WorldScreen(worldScreen.viewingCiv)
         UncivGame.Current.setWorldScreen()

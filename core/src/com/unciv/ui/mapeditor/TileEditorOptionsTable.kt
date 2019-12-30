@@ -14,7 +14,7 @@ import com.unciv.models.ruleset.tile.Terrain
 import com.unciv.models.ruleset.tile.TerrainType
 import com.unciv.models.ruleset.tile.TileImprovement
 import com.unciv.models.ruleset.tile.TileResource
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.tilegroups.TileGroup
 import com.unciv.ui.tilegroups.TileSetStrings
 import com.unciv.ui.utils.*
@@ -74,7 +74,7 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
             }
         }).row()
 
-        for(improvement in ruleSet.TileImprovements.values){
+        for(improvement in ruleSet.tileImprovements.values){
             if(improvement.name.startsWith("Remove")) continue
             val improvementImage = getHex(Color.WHITE,ImageGetter.getImprovementIcon(improvement.name,40f))
             improvementImage.onClick {
@@ -88,7 +88,7 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
         editorPickTable.add(ScrollPane(improvementsTable)).height(mapEditorScreen.stage.height*0.7f)
 
         val nationsTable = Table()
-        for(nation in ruleSet.Nations.values){
+        for(nation in ruleSet.nations.values){
             val nationImage = getHex(Color.WHITE,ImageGetter.getNationIndicator(nation,40f))
             nationImage.onClick {
                 clearSelection()
@@ -151,7 +151,7 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
             }
         })
 
-        for (resource in ruleSet.TileResources.values) {
+        for (resource in ruleSet.tileResources.values) {
             val resourceHex = getHex(Color.WHITE, ImageGetter.getResourceImage(resource.name, 40f))
             resourceHex.onClick {
                 clearSelection()
@@ -160,7 +160,7 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
                 tileInfo.ruleset = mapEditorScreen.ruleSet
 
                 val terrain = resource.terrainsCanBeFoundOn.first()
-                val terrainObject = ruleSet.Terrains[terrain]!!
+                val terrainObject = ruleSet.terrains[terrain]!!
                 if (terrainObject.type == TerrainType.TerrainFeature) {
                     tileInfo.baseTerrain = when {
                         terrainObject.occursOn == null -> terrainObject.occursOn!!.first()
@@ -179,7 +179,7 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
     }
 
     private fun addTerrainOptions(terrainFeaturesTable: Table, baseTerrainTable: Table) {
-        for (terrain in ruleSet.Terrains.values) {
+        for (terrain in ruleSet.terrains.values) {
             val tileInfo = TileInfo()
             tileInfo.ruleset = mapEditorScreen.ruleSet
             if (terrain.type == TerrainType.TerrainFeature) {
@@ -293,13 +293,19 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
 
     fun updateTileWhenClicked(tileInfo: TileInfo) {
         when {
-            clearTerrainFeature -> tileInfo.terrainFeature = null
+            clearTerrainFeature -> {
+                tileInfo.terrainFeature = null
+                tileInfo.naturalWonder = null
+            }
             clearResource -> tileInfo.resource = null
             selectedResource != null -> tileInfo.resource = selectedResource!!.name
             selectedTerrain != null -> {
                 if (selectedTerrain!!.type == TerrainType.TerrainFeature)
                     tileInfo.terrainFeature = selectedTerrain!!.name
-                else tileInfo.baseTerrain = selectedTerrain!!.name
+                else if (selectedTerrain!!.type == TerrainType.NaturalWonder)
+                    tileInfo.naturalWonder = selectedTerrain!!.name
+                else
+                    tileInfo.baseTerrain = selectedTerrain!!.name
             }
             clearImprovement -> {
                 tileInfo.improvement = null
@@ -330,6 +336,15 @@ class TileEditorOptionsTable(val mapEditorScreen: MapEditorScreen): Table(Camera
     }
 
     fun normalizeTile(tileInfo: TileInfo){
+        /*Natural Wonder superpowers! */
+        if (tileInfo.naturalWonder != null) {
+            val naturalWonder = tileInfo.getNaturalWonder()
+            tileInfo.baseTerrain = naturalWonder.turnsInto!!
+            tileInfo.terrainFeature = null
+            tileInfo.resource = null
+            tileInfo.improvement = null
+        }
+
         if(tileInfo.terrainFeature!=null){
             val terrainFeature = tileInfo.getTerrainFeature()!!
             if(terrainFeature.occursOn!=null && !terrainFeature.occursOn.contains(tileInfo.baseTerrain))

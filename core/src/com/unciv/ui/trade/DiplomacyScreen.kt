@@ -18,7 +18,7 @@ import com.unciv.logic.civilization.diplomacy.RelationshipLevel
 import com.unciv.logic.trade.TradeLogic
 import com.unciv.logic.trade.TradeOffer
 import com.unciv.logic.trade.TradeType
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.utils.*
 import com.unciv.ui.worldscreen.optionstable.YesNoPopupTable
 import kotlin.math.roundToInt
@@ -116,16 +116,17 @@ class DiplomacyScreen(val viewingCiv:CivilizationInfo):CameraStageBaseScreen() {
         }
 
         val friendBonusText = when (otherCiv.getCityStateType()) {
-            CityStateType.Cultured -> ("Provides [" + (3 * (viewingCiv.getEra().ordinal + 1)).toString() + "] culture at [30] Influence").tr()
-            CityStateType.Maritime -> "Provides 3 food in capital and 1 food in other cities at [30] Influence".tr()
-            CityStateType.Mercantile -> "Provides 3 happiness at [30] Influence".tr()
-            CityStateType.Militaristic -> "Provides land units every 20 turns at [30] Influence".tr()
+            CityStateType.Cultured -> ("Provides [" + (3 * (viewingCiv.getEra().ordinal + 1)).toString() + "] culture at 30 Influence").tr()
+            CityStateType.Maritime -> "Provides 3 food in capital and 1 food in other cities at 30 Influence".tr()
+            CityStateType.Mercantile -> "Provides 3 happiness at 30 Influence".tr()
+            CityStateType.Militaristic -> "Provides land units every 20 turns at 30 Influence".tr()
         }
 
         val friendBonusLabelColor:Color
         if (otherCivDiplomacyManager.relationshipLevel() >= RelationshipLevel.Friend) {
             friendBonusLabelColor = Color.GREEN
-            val turnsToRelationshipChange = otherCivDiplomacyManager.influence.toInt() - 30 + 1
+            // RelationshipChange = Ally -> Friend or Friend -> Favorable
+            val turnsToRelationshipChange = otherCivDiplomacyManager.getTurnsToRelationshipChange()
             diplomacyTable.add("Relationship changes in another [$turnsToRelationshipChange] turns".toLabel()).row()
         } else
             friendBonusLabelColor = Color.GRAY

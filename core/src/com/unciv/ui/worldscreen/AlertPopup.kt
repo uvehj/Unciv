@@ -5,7 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.logic.civilization.AlertType
 import com.unciv.logic.civilization.CivilizationInfo
 import com.unciv.logic.civilization.PopupAlert
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.utils.*
 import com.unciv.ui.worldscreen.optionstable.PopupTable
 
@@ -149,7 +149,7 @@ class AlertPopup(val worldScreen: WorldScreen, val popupAlert: PopupAlert): Popu
                 add(getCloseButton("Very well."))
             }
             AlertType.WonderBuilt -> {
-                val wonder = worldScreen.gameInfo.ruleSet.Buildings[popupAlert.value]!!
+                val wonder = worldScreen.gameInfo.ruleSet.buildings[popupAlert.value]!!
                 addGoodSizedLabel(wonder.name)
                 addSeparator()
                 val centerTable = Table()
@@ -162,7 +162,7 @@ class AlertPopup(val worldScreen: WorldScreen, val popupAlert: PopupAlert): Popu
             }
             AlertType.TechResearched -> {
                 val gameBasics = worldScreen.gameInfo.ruleSet
-                val tech = gameBasics.Technologies[popupAlert.value]!!
+                val tech = gameBasics.technologies[popupAlert.value]!!
                 addGoodSizedLabel(tech.name)
                 addSeparator()
                 val centerTable = Table()
@@ -180,12 +180,12 @@ class AlertPopup(val worldScreen: WorldScreen, val popupAlert: PopupAlert): Popu
             }
         }
         open()
-        worldScreen.alertPopupIsOpen = true
+        worldScreen.hasPopupOpen = true
     }
 
     override fun close(){
         worldScreen.viewingCiv.popupAlerts.remove(popupAlert)
-        worldScreen.alertPopupIsOpen = false
+        worldScreen.hasPopupOpen = false
         super.close()
     }
 }

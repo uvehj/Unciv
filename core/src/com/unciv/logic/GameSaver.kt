@@ -48,9 +48,13 @@ class GameSaver {
     fun getGeneralSettings(): GameSettings {
         val settingsFile = getGeneralSettingsFile()
         if(!settingsFile.exists()) return GameSettings()
-        val settings = json().fromJson(GameSettings::class.java, settingsFile)
+        var settings = json().fromJson(GameSettings::class.java, settingsFile)
+        // I'm not sure of the circumstances,
+        // but some people were getting null settings, even though the file existed??? Very odd.
+        if(settings==null) settings = GameSettings()
 
-        val currentTileSets = ImageGetter.atlas.regions.filter { it.name.startsWith("TileSets") }
+        val currentTileSets = ImageGetter.atlas.regions.asSequence()
+                .filter { it.name.startsWith("TileSets") }
                 .map { it.name.split("/")[1] }.distinct()
         if(settings.tileSet !in currentTileSets) settings.tileSet = "Default"
         return settings

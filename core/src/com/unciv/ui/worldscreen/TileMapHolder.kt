@@ -92,6 +92,7 @@ class TileMapHolder(internal val worldScreen: WorldScreen, internal val tileMap:
             override fun zoom(event: InputEvent?, initialDistance: Float, distance: Float) {
                 // deselect any unit, as zooming occasionally forwards clicks on to the map
                 worldScreen.bottomUnitTable.selectedUnit = null
+                worldScreen.shouldUpdate = true
                 if (lastInitialDistance != initialDistance) {
                     lastInitialDistance = initialDistance
                     lastScale = scaleX
@@ -125,7 +126,7 @@ class TileMapHolder(internal val worldScreen: WorldScreen, internal val tileMap:
         if(newSelectedUnit==null || newSelectedUnit.type==UnitType.Civilian){
             val unitsInTile = selectedTile!!.getUnits()
             if(previousSelectedCity != null && !previousSelectedCity.attackedThisTurn
-                    && selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.ccenterTile)
+                    && selectedTile!!.getTilesInDistance(2).contains(previousSelectedCity.getCenterTile())
                     && unitsInTile.isNotEmpty()
                     && unitsInTile.first().civInfo.isAtWarWith(worldScreen.viewingCiv)){
                 // try to select the closest city to bombard this guy

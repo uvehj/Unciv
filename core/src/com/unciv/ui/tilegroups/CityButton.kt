@@ -82,7 +82,7 @@ class CityButton(val city: CityInfo, internal val tileGroup: WorldTileGroup, ski
         // when deselected, move city button to its original position
         if (isButtonMoved
                 && unitTable.selectedCity != city
-                && unitTable.selectedUnit?.currentTile != city.ccenterTile) {
+                && unitTable.selectedUnit?.currentTile != city.getCenterTile()) {
 
             moveButtonUp()
         }
@@ -94,7 +94,7 @@ class CityButton(val city: CityInfo, internal val tileGroup: WorldTileGroup, ski
         iconTable.touchable=Touchable.enabled
         iconTable.background = ImageGetter.getRoundedEdgeTableBackground(city.civInfo.nation.getOuterColor())
 
-        if (city.resistanceCounter > 0) {
+        if (city.isInResistance()) {
             val resistanceImage = ImageGetter.getImage("StatIcons/Resistance")
             iconTable.add(resistanceImage).size(20f).pad(2f).padLeft(5f)
         }

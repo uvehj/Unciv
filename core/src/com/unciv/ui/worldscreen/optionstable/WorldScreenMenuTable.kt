@@ -4,7 +4,7 @@ import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.graphics.Color
 import com.unciv.UncivGame
 import com.unciv.logic.map.RoadStatus
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.CivilopediaScreen
 import com.unciv.ui.VictoryScreen
 import com.unciv.ui.mapeditor.MapEditorScreen
@@ -17,6 +17,7 @@ import com.unciv.ui.utils.toLabel
 import com.unciv.ui.worldscreen.WorldScreen
 import java.util.*
 import kotlin.collections.ArrayList
+import kotlin.concurrent.thread
 
 class WorldScreenMenuTable(val worldScreen: WorldScreen) : PopupTable(worldScreen) {
 
@@ -117,13 +118,18 @@ class WorldScreenMenuTable(val worldScreen: WorldScreen) : PopupTable(worldScree
                 badGameIdLabel.isVisible = true
                 return@addButton
             }
-            try {
-                val game = OnlineMultiplayer().tryDownloadGame(gameId.trim())
-                UncivGame.Current.loadGame(game)
-            } catch (ex: Exception) {
-                badGameIdLabel.setText("Could not download game!".tr())
-                badGameIdLabel.isVisible = true
-                return@addButton
+            thread {
+                try {
+                    // The tryDownload can take more than 500ms. Therefore, to avoid ANRs,
+                    // we need to run it in a different thread.
+                    val game = OnlineMultiplayer().tryDownloadGame(gameId.trim())
+                    // The loadGame creates a screen, so it's a UI action,
+                    // therefore it needs to run on the main thread so it has a GL context
+                    Gdx.app.postRunnable { UncivGame.Current.loadGame(game) }
+                } catch (ex: Exception) {
+                    badGameIdLabel.setText("Could not download game!".tr())
+                    badGameIdLabel.isVisible = true
+                }
             }
         }.row()
         multiplayerPopup.add(badGameIdLabel).row()
@@ -145,7 +151,7 @@ class WorldScreenCommunityTable(val worldScreen: WorldScreen) : PopupTable(world
         }
 
         addButton("Patreon"){
-            Gdx.net.openURI("https://github.com/yairm210/UnCiv")
+            Gdx.net.openURI("https://www.patreon.com/yairm210")
             remove()
         }
 

@@ -2,27 +2,34 @@ package com.unciv.models.ruleset.tile
 
 import com.badlogic.gdx.graphics.Color
 import com.unciv.models.ruleset.Ruleset
-import com.unciv.models.ruleset.tr
 import com.unciv.models.stats.NamedStats
+import com.unciv.models.translations.tr
 import com.unciv.ui.utils.colorFromRGB
 
 class Terrain : NamedStats() {
     fun getDescription(ruleset: Ruleset): String {
         val sb = StringBuilder()
         sb.appendln(this.clone().toString())
-        if (occursOn != null) {
+        if (occursOn != null)
             sb.appendln("Occurs on [${occursOn.joinToString(", ")}]".tr())
-        }
-        val resourcesFound = ruleset.TileResources.values.filter { it.terrainsCanBeFoundOn.contains(name) }
-        if (resourcesFound.isNotEmpty()) {
-            sb.appendln("May contain [${resourcesFound.joinToString(", ") { it.name.tr() }}]".tr())
-        }
-        sb.appendln("{Movement cost}: $movementCost".tr())
-        if (defenceBonus != 0f) {
-            sb.appendln("{Defence bonus}: ".tr() + (defenceBonus * 100).toInt() + "%")
-        }
 
-        if (rough)  sb.appendln("Rough Terrain".tr())
+        if (turnsInto != null)
+            sb.appendln("Placed on [${turnsInto.tr()}]".tr())
+
+        val resourcesFound = ruleset.tileResources.values.filter { it.terrainsCanBeFoundOn.contains(name) }
+        if (resourcesFound.isNotEmpty())
+            sb.appendln("May contain [${resourcesFound.joinToString(", ") { it.name.tr() }}]".tr())
+
+        if(uniques.isNotEmpty())
+            sb.appendln(uniques.joinToString { it.tr() })
+
+        sb.appendln("{Movement cost}: $movementCost".tr())
+
+        if (defenceBonus != 0f)
+            sb.appendln("{Defence bonus}: ".tr() + (defenceBonus * 100).toInt() + "%")
+
+        if (rough)
+            sb.appendln("Rough Terrain".tr())
 
         return sb.toString()
     }
@@ -47,6 +54,16 @@ class Terrain : NamedStats() {
      */
     val occursOn: Collection<String>? = null
 
+    /***
+     * Used by Natural Wonders: it is the baseTerrain on top of which the Natural Wonder is placed
+     */
+    val turnsInto: String? = null
+
+    /**
+     * Uniques (currently used only for Natural Wonders)
+     */
+    val uniques = ArrayList<String>()
+
     /*
      * Natural Wonder weight: probability to be picked
      */
@@ -61,5 +78,8 @@ class Terrain : NamedStats() {
     var impassable = false
     var rough = false
 
-    fun getColor(): Color = colorFromRGB(RGB!![0], RGB!![1], RGB!![2])
+    fun getColor(): Color {
+        if (RGB == null) return Color.GOLD
+        return colorFromRGB(RGB!![0], RGB!![1], RGB!![2])
+    }
 }

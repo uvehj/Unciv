@@ -74,7 +74,7 @@ class CityStats {
 
     private fun getStatPercentBonusesFromRailroad(): Stats {
         val stats = Stats()
-        val techEnablingRailroad = cityInfo.getRuleset().TileImprovements["Railroad"]!!.techRequired!!
+        val techEnablingRailroad = cityInfo.getRuleset().tileImprovements["Railroad"]!!.techRequired!!
         // If we conquered enemy cities connected by railroad, but we don't yet have that tech,
         // we shouldn't get bonuses, it's as if the tracks aare layed out but we can't operate them.
         if (cityInfo.civInfo.tech.isResearched(techEnablingRailroad)
@@ -222,6 +222,9 @@ class CityStats {
         if (civInfo.containsBuildingUnique("+1 happiness in each city"))
             newHappinessList["Wonders"] = 1f
 
+        if (baseStatList.containsKey("Tile yields"))
+            newHappinessList["Tile yields"] = baseStatList["Tile yields"]!!.happiness
+        
         // we don't want to modify the existing happiness list because that leads
         // to concurrency problems if we iterate on it while changing
         happinessList = newHappinessList
@@ -390,8 +393,9 @@ class CityStats {
     }
 
     fun update() {
-        updateCityHappiness()
+        // We need to compute Tile yields before happiness
         updateBaseStatList()
+        updateCityHappiness()
         updateStatPercentBonusList()
 
         updateFinalStatList() // again, we don't edit the existing currentCityStats directly, in order to avoid concurrency exceptions
@@ -470,7 +474,7 @@ class CityStats {
                     Stats().apply { production=totalFood; food=-totalFood }
         }
 
-        if (cityInfo.resistanceCounter > 0)
+        if (cityInfo.isInResistance())
             newFinalStatList.clear()  // NOPE
 
         if (newFinalStatList.values.map { it.production }.sum() < 1)  // Minimum production for things to progress

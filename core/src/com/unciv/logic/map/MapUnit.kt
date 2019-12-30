@@ -114,7 +114,7 @@ class MapUnit {
         val uniques = ArrayList<String>()
         val baseUnit = baseUnit()
         uniques.addAll(baseUnit.uniques)
-        uniques.addAll(promotions.promotions.map { currentTile.tileMap.gameInfo.ruleSet.UnitPromotions[it]!!.effect })
+        uniques.addAll(promotions.promotions.map { currentTile.tileMap.gameInfo.ruleSet.unitPromotions[it]!!.effect })
         tempUniques = uniques
 
         if("Ignores terrain cost" in uniques) ignoresTerrainCost=true
@@ -136,6 +136,7 @@ class MapUnit {
         else {
             var visibilityRange = 2
             visibilityRange += getUniques().count { it == "+1 Visibility Range" }
+            if (hasUnique("+2 Visibility Range")) visibilityRange += 2 // This shouldn't be stackable
             if (hasUnique("Limited Visibility")) visibilityRange -= 1
             if (civInfo.nation.unique == "All land military units have +1 sight, 50% discount when purchasing tiles")
                 visibilityRange += 1
@@ -269,7 +270,7 @@ class MapUnit {
     fun setTransients(ruleset: Ruleset) {
         promotions.unit=this
         mapUnitAction?.unit = this
-        baseUnit=ruleset.Units[name]!!
+        baseUnit=ruleset.units[name]!!
         updateUniques()
     }
 
@@ -429,7 +430,7 @@ class MapUnit {
 
         if(!hasUnique("All healing effects doubled") && type.isLandUnit() && type.isMilitary())
         {
-            val gainDoubleHealPromotion = tile.neighbors.filter{it.naturalWonder == "Fountain of Youth"}.any()
+            val gainDoubleHealPromotion = tile.neighbors.any{it.containsUnique("Grants Rejuvenation (all healing effects doubled) to adjacent military land units for the rest of the game")}
             if (gainDoubleHealPromotion)
                 promotions.addPromotion("Rejuvenation", true)
         }
@@ -469,7 +470,7 @@ class MapUnit {
             city.population.autoAssignPopulation()
             civInfo.addNotification("We have found survivors in the ruins - population added to ["+city.name+"]",tile.position, Color.GREEN)
         }
-        val researchableAncientEraTechs = tile.tileMap.gameInfo.ruleSet.Technologies.values
+        val researchableAncientEraTechs = tile.tileMap.gameInfo.ruleSet.technologies.values
                 .filter {
                     !civInfo.tech.isResearched(it.name)
                             && civInfo.tech.canBeResearched(it.name)

@@ -9,7 +9,7 @@ import com.unciv.logic.map.MapUnit
 import com.unciv.logic.map.RoadStatus
 import com.unciv.logic.map.TileInfo
 import com.unciv.models.ruleset.Building
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.pickerscreens.ImprovementPickerScreen
 import com.unciv.ui.pickerscreens.PromotionPickerScreen
 import com.unciv.ui.worldscreen.WorldScreen
@@ -142,7 +142,7 @@ class UnitActions {
             actionList += UnitAction("Construct improvement",
                     unit.currentMovement > 0
                             && !tile.isCityCenter()
-                            && unit.civInfo.gameInfo.ruleSet.TileImprovements.values.any { tile.canBuildImprovement(it, unit.civInfo) },
+                            && unit.civInfo.gameInfo.ruleSet.tileImprovements.values.any { tile.canBuildImprovement(it, unit.civInfo) },
                     currentAction = unit.currentTile.hasImprovementInProgress()
             ) { worldScreen.game.setScreen(ImprovementPickerScreen(tile) { unitTable.selectedUnit = null }) }
 
@@ -172,7 +172,7 @@ class UnitActions {
                     && tile.isWater // because fishing boats can enter cities, and if there's oil in the city... ;)
                     && tile.improvement==null
                     && tile.getTileResource().improvement == improvement
-                    && unit.civInfo.tech.isResearched(unit.civInfo.gameInfo.ruleSet.TileImprovements[improvement]!!.techRequired!!)
+                    && unit.civInfo.tech.isResearched(unit.civInfo.gameInfo.ruleSet.tileImprovements[improvement]!!.techRequired!!)
             )
                 actionList += UnitAction("Create [$improvement]", unit.currentMovement >0) {
                     tile.improvement = improvement
@@ -240,7 +240,8 @@ class UnitActions {
                 if (unit.civInfo.policies.isAdopted("Commerce Complete"))
                     goldEarned *= 2
                 unit.civInfo.gold += goldEarned.toInt()
-                val influenceEarned=Regex("\\d+").find(unit.getUniques()[0])!!.value.toInt()
+                val relevantUnique = unit.getUniques().first { it.startsWith("Can undertake") }
+                val influenceEarned=Regex("\\d+").find(relevantUnique)!!.value.toInt()
                 tile.owningCity!!.civInfo.getDiplomacyManager(unit.civInfo).influence += influenceEarned
                 unit.civInfo.addNotification("Your trade mission to [${tile.owningCity!!.civInfo}] has earned you [${goldEarned.toInt()}] gold and [$influenceEarned] influence!",null, Color.GOLD)
                 unit.destroy()

@@ -14,7 +14,13 @@ import com.unciv.models.ruleset.unit.UnitType
 import com.unciv.ui.worldscreen.unit.UnitAction
 import com.unciv.ui.worldscreen.unit.UnitActions
 
+
 class UnitAutomation{
+
+    companion object {
+        const val CLOSE_ENEMY_TILES_AWAY_LIMIT = 5
+        const val CLOSE_ENEMY_TURNS_AWAY_LIMIT = 3f
+    }
 
     fun automateUnitMoves(unit: MapUnit) {
 
@@ -80,7 +86,7 @@ class UnitAutomation{
 
         if (unit.health < 80 && tryHealUnit(unit, unitDistanceToTiles)) return
 
-        // find the closest enemy unit that we know of within 5 spaces and advance towards it
+        // move towards the closest reasonably attackable enemy unit within 3 turns of movement (and 5 tiles range)
         if (tryAdvanceTowardsCloseEnemy(unit)) return
 
         if (unit.health < 100 && tryHealUnit(unit, unitDistanceToTiles)) return
@@ -100,6 +106,7 @@ class UnitAutomation{
 
     private fun tryHeadTowardsEncampment(unit: MapUnit): Boolean {
         if(unit.civInfo.isBarbarian()) return false
+        if(unit.type==UnitType.Missile) return false // don't use missiles against barbarians...
         val knownEncampments = unit.civInfo.gameInfo.tileMap.values.asSequence()
                 .filter { it.improvement==Constants.barbarianEncampment && unit.civInfo.exploredTiles.contains(it.position) }
         val cities = unit.civInfo.cities
@@ -195,9 +202,13 @@ class UnitAutomation{
 
     class AttackableTile(val tileToAttackFrom:TileInfo, val tileToAttack:TileInfo)
 
-    fun getAttackableEnemies(unit: MapUnit, unitDistanceToTiles: PathsToTilesWithinTurn): ArrayList<AttackableTile> {
-        val tilesWithEnemies = unit.civInfo.viewableTiles
-                .filter { containsAttackableEnemy(it, MapUnitCombatant(unit)) }
+    fun getAttackableEnemies(
+            unit: MapUnit,
+            unitDistanceToTiles: PathsToTilesWithinTurn,
+            tilesToCheck: List<TileInfo>? = null
+    ): ArrayList<AttackableTile> {
+        val tilesWithEnemies = (tilesToCheck ?: unit.civInfo.viewableTiles)
+            .filter { containsAttackableEnemy(it, MapUnitCombatant(unit)) }
 
         val rangeOfAttack = unit.getRange()
 
@@ -238,17 +249,32 @@ class UnitAutomation{
                 .filter { containsAttackableEnemy(it, CityCombatant(city)) }
     }
 
+    /** Move towards the closest attackable enemy of the [unit].
+     *
+     *  Limited by [CLOSE_ENEMY_TURNS_AWAY_LIMIT] and [CLOSE_ENEMY_TILES_AWAY_LIMIT].
+     *  Tiles attack from which would result in instant death of the [unit] are ignored. */
     private fun tryAdvanceTowardsCloseEnemy(unit: MapUnit): Boolean {
         // this can be sped up if we check each layer separately
-        var closeEnemies = unit.getTile().getTilesInDistance(5)
-                .filter{ containsAttackableEnemy(it, MapUnitCombatant(unit)) && unit.movement.canReach(it)}
-        if(unit.type.isRanged())
-            closeEnemies = closeEnemies.filterNot { it.isCityCenter() && it.getCity()!!.health==1 }
+        val unitDistanceToTiles = unit.movement.getDistanceToTilesWithinTurn(
+            unit.getTile().position,
+            unit.getMaxMovement() * CLOSE_ENEMY_TURNS_AWAY_LIMIT
+        )
+        var closeEnemies = getAttackableEnemies(
+            unit,
+            unitDistanceToTiles,
+            tilesToCheck = unit.getTile().getTilesInDistance(CLOSE_ENEMY_TILES_AWAY_LIMIT)
+        ).filter {  // Ignore units that would 1-shot you if you attacked
+            BattleDamage().calculateDamageToAttacker(MapUnitCombatant(unit),
+                Battle(unit.civInfo.gameInfo).getMapCombatantOfTile(it.tileToAttack)!!) < unit.health
+        }
 
-        val closestEnemy = closeEnemies.minBy { it.arialDistanceTo(unit.getTile()) }
+        if(unit.type.isRanged())
+            closeEnemies = closeEnemies.filterNot { it.tileToAttack.isCityCenter() && it.tileToAttack.getCity()!!.health==1 }
+
+        val closestEnemy = closeEnemies.minBy { it.tileToAttack.arialDistanceTo(unit.getTile()) }
 
         if (closestEnemy != null) {
-            unit.movement.headTowards(closestEnemy)
+            unit.movement.headTowards(closestEnemy.tileToAttackFrom)
             return true
         }
         return false
@@ -266,7 +292,7 @@ class UnitAutomation{
 
     private fun tryUpgradeUnit(unit: MapUnit, unitActions: List<UnitAction>): Boolean {
         if (unit.baseUnit().upgradesTo != null) {
-            val upgradedUnit = unit.civInfo.gameInfo.ruleSet.Units[unit.baseUnit().upgradesTo!!]!!
+            val upgradedUnit = unit.civInfo.gameInfo.ruleSet.units[unit.baseUnit().upgradesTo!!]!!
             if (upgradedUnit.isBuildable(unit.civInfo)) {
                 val upgradeAction = unitActions.firstOrNull { it.name.startsWith("Upgrade to") }
                 if (upgradeAction != null && upgradeAction.canAct) {

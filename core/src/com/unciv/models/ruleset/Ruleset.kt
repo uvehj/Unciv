@@ -1,6 +1,5 @@
 package com.unciv.models.ruleset
 
-import com.badlogic.gdx.Application
 import com.badlogic.gdx.Gdx
 import com.badlogic.gdx.utils.Json
 import com.unciv.models.ruleset.tech.TechColumn
@@ -11,23 +10,32 @@ import com.unciv.models.ruleset.tile.TileResource
 import com.unciv.models.ruleset.unit.BaseUnit
 import com.unciv.models.ruleset.unit.Promotion
 import com.unciv.models.stats.INamed
-import java.util.*
-import kotlin.collections.ArrayList
-import kotlin.collections.LinkedHashMap
 import kotlin.collections.set
 
 class Ruleset {
-    val Buildings = LinkedHashMap<String, Building>()
-    val Terrains = LinkedHashMap<String, Terrain>()
-    val TileResources = LinkedHashMap<String, TileResource>()
-    val TileImprovements = LinkedHashMap<String, TileImprovement>()
-    val Technologies = LinkedHashMap<String, Technology>()
-    val Units = LinkedHashMap<String, BaseUnit>()
-    val UnitPromotions = LinkedHashMap<String, Promotion>()
-    val Nations = LinkedHashMap<String, Nation>()
-    val PolicyBranches = LinkedHashMap<String, PolicyBranch>()
-    val Difficulties = LinkedHashMap<String, Difficulty>()
-    val Translations = Translations()
+    var name=""
+    val mods = LinkedHashSet<String>()
+    val buildings = LinkedHashMap<String, Building>()
+    val terrains = LinkedHashMap<String, Terrain>()
+    val tileResources = LinkedHashMap<String, TileResource>()
+    val tileImprovements = LinkedHashMap<String, TileImprovement>()
+    val technologies = LinkedHashMap<String, Technology>()
+    val units = LinkedHashMap<String, BaseUnit>()
+    val unitPromotions = LinkedHashMap<String, Promotion>()
+    val nations = LinkedHashMap<String, Nation>()
+    val policyBranches = LinkedHashMap<String, PolicyBranch>()
+    val difficulties = LinkedHashMap<String, Difficulty>()
+
+    fun clone(): Ruleset{
+        val newRuleset = Ruleset(false)
+        newRuleset.add(this)
+        return newRuleset
+    }
+
+    constructor(load:Boolean=true){
+        if(load) load()
+    }
+
 
     fun <T> getFromJson(tClass: Class<T>, filePath:String): T {
         val jsonText = Gdx.files.internal(filePath).readString(Charsets.UTF_8.name())
@@ -41,25 +49,32 @@ class Ruleset {
         return hashMap
     }
 
-    fun clone(): Ruleset{
-        val newRuleset = Ruleset(false)
-        newRuleset.Buildings.putAll(Buildings)
-        newRuleset.Difficulties.putAll(Difficulties)
-        newRuleset.Nations .putAll(Nations)
-        newRuleset.PolicyBranches.putAll(PolicyBranches)
-        newRuleset.Technologies.putAll(Technologies)
-        newRuleset.Buildings.putAll(Buildings)
-        newRuleset.Terrains.putAll(Terrains)
-        newRuleset.TileImprovements.putAll(TileImprovements)
-        newRuleset.TileResources.putAll(TileResources)
-        newRuleset.Translations.putAll(Translations)
-        newRuleset.UnitPromotions.putAll(UnitPromotions)
-        newRuleset.Units.putAll(Units)
-        return newRuleset
+    fun add(ruleset: Ruleset){
+        buildings.putAll(ruleset.buildings)
+        difficulties.putAll(ruleset.difficulties)
+        nations .putAll(ruleset.nations)
+        policyBranches.putAll(ruleset.policyBranches)
+        technologies.putAll(ruleset.technologies)
+        buildings.putAll(ruleset.buildings)
+        terrains.putAll(ruleset.terrains)
+        tileImprovements.putAll(ruleset.tileImprovements)
+        tileResources.putAll(ruleset.tileResources)
+        unitPromotions.putAll(ruleset.unitPromotions)
+        units.putAll(ruleset.units)
     }
 
-    constructor(load:Boolean=true){
-        if(load) load()
+    fun clearExceptModNames(){
+        buildings.clear()
+        difficulties.clear()
+        nations.clear()
+        policyBranches.clear()
+        technologies.clear()
+        buildings.clear()
+        terrains.clear()
+        tileImprovements.clear()
+        tileResources.clear()
+        unitPromotions.clear()
+        units.clear()
     }
 
     fun load(folderPath: String="jsons") {
@@ -70,26 +85,26 @@ class Ruleset {
             for (tech in techColumn.techs) {
                 if (tech.cost==0) tech.cost = techColumn.techCost
                 tech.column = techColumn
-                Technologies[tech.name] = tech
+                technologies[tech.name] = tech
             }
         }
 
-        Buildings += createHashmap(getFromJson(Array<Building>::class.java, "$folderPath/Buildings.json"))
-        for (building in Buildings.values) {
+        buildings += createHashmap(getFromJson(Array<Building>::class.java, "$folderPath/Buildings.json"))
+        for (building in buildings.values) {
             if (building.requiredTech == null) continue
-            val column = Technologies[building.requiredTech!!]!!.column
+            val column = technologies[building.requiredTech!!]!!.column
             if (building.cost == 0)
                 building.cost = if (building.isWonder || building.isNationalWonder) column!!.wonderCost else column!!.buildingCost
         }
 
-        Terrains += createHashmap(getFromJson(Array<Terrain>::class.java, "$folderPath/Terrains.json"))
-        TileResources += createHashmap(getFromJson(Array<TileResource>::class.java, "$folderPath/TileResources.json"))
-        TileImprovements += createHashmap(getFromJson(Array<TileImprovement>::class.java, "$folderPath/TileImprovements.json"))
-        Units += createHashmap(getFromJson(Array<BaseUnit>::class.java, "$folderPath/Units.json"))
-        UnitPromotions += createHashmap(getFromJson(Array<Promotion>::class.java, "$folderPath/UnitPromotions.json"))
+        terrains += createHashmap(getFromJson(Array<Terrain>::class.java, "$folderPath/Terrains.json"))
+        tileResources += createHashmap(getFromJson(Array<TileResource>::class.java, "$folderPath/TileResources.json"))
+        tileImprovements += createHashmap(getFromJson(Array<TileImprovement>::class.java, "$folderPath/TileImprovements.json"))
+        units += createHashmap(getFromJson(Array<BaseUnit>::class.java, "$folderPath/Units.json"))
+        unitPromotions += createHashmap(getFromJson(Array<Promotion>::class.java, "$folderPath/UnitPromotions.json"))
 
-        PolicyBranches += createHashmap(getFromJson(Array<PolicyBranch>::class.java, "$folderPath/Policies.json"))
-        for (branch in PolicyBranches.values) {
+        policyBranches += createHashmap(getFromJson(Array<PolicyBranch>::class.java, "$folderPath/Policies.json"))
+        for (branch in policyBranches.values) {
             branch.requires = ArrayList()
             branch.branch = branch
             for (policy in branch.policies) {
@@ -99,87 +114,15 @@ class Ruleset {
             branch.policies.last().name = branch.name + " Complete"
         }
 
-        Nations += createHashmap(getFromJson(Array<Nation>::class.java, "$folderPath/Nations/Nations.json"))
-        for(nation in Nations.values) nation.setTransients()
+        nations += createHashmap(getFromJson(Array<Nation>::class.java, "$folderPath/Nations/Nations.json"))
+        for(nation in nations.values) nation.setTransients()
 
-        Difficulties += createHashmap(getFromJson(Array<Difficulty>::class.java, "$folderPath/Difficulties.json"))
+        difficulties += createHashmap(getFromJson(Array<Difficulty>::class.java, "$folderPath/Difficulties.json"))
 
         val gameBasicsLoadTime = System.currentTimeMillis() - gameBasicsStartTime
         println("Loading game basics - "+gameBasicsLoadTime+"ms")
 
-        // Apparently you can't iterate over the files in a directory when running out of a .jar...
-        // https://www.badlogicgames.com/forum/viewtopic.php?f=11&t=27250
-        // which means we need to list everything manually =/
-
-        val translationStart = System.currentTimeMillis()
-
-
-        readTranslationsFromProperties()
-//        readTranslationsFromJson()
-        if(Gdx.app.type==Application.ApplicationType.Desktop) // Yes, also when running from the Jar. Sue me.
-            writeNewTranslationFiles()
-
-        val translationFilesTime = System.currentTimeMillis() - translationStart
-        println("Loading translation files - "+translationFilesTime+"ms")
     }
 
-    private fun writeNewTranslationFiles() {
-        for (language in Translations.getLanguages()) {
-            val languageHashmap = HashMap<String, String>()
-
-            for (translation in Translations.values) {
-                if (translation.containsKey(language))
-                    languageHashmap[translation.entry] = translation[language]!!
-            }
-            TranslationFileReader().writeByTemplate(language, languageHashmap)
-        }
-
-    }
-
-    private fun readTranslationsFromProperties() {
-
-        val languages = ArrayList<String>()
-        // So apparently the Locales don't work for everyone, which is horrendous
-        // So for those players, which seem to be Android-y, we try to see what files exist directly...yeah =/
-        try{
-            for(file in Gdx.files.internal("jsons/translationsByLanguage").list())
-                languages.add(file.nameWithoutExtension())
-        }
-        catch (ex:Exception){} // Iterating on internal files will not work when running from a .jar
-
-        languages.addAll(Locale.getAvailableLocales() // And this should work for Desktop, meaning from a .jar
-                .map { it.getDisplayName(Locale.ENGLISH) }) // Maybe THIS is the problem, that the DISPLAY locale wasn't english
-        // and then languages were displayed according to the player's locale... *sweatdrop*
-
-        // These should probably ve renamed
-        languages.add("Simplified_Chinese")
-        languages.add("Traditional_Chinese")
-
-        for (language in languages.distinct()) {
-            val translationFileName = "jsons/translationsByLanguage/$language.properties"
-            if (!Gdx.files.internal(translationFileName).exists()) continue
-            val languageTranslations = TranslationFileReader().read(translationFileName)
-
-            for (translation in languageTranslations) {
-                if (!Translations.containsKey(translation.key))
-                    Translations[translation.key] = TranslationEntry(translation.key)
-                Translations[translation.key]!![language] = translation.value
-            }
-        }
-    }
-
-    private fun readTranslationsFromJson() {
-
-        val translationFileNames = listOf("Buildings","Diplomacy,Trade,Nations",
-                "NewGame,SaveGame,LoadGame,Options", "Notifications","Other","Policies","Techs",
-                "Terrains,Resources,Improvements","Units,Promotions")
-
-        for (fileName in translationFileNames) {
-            val file = Gdx.files.internal("jsons/Translations/$fileName.json")
-            if (file.exists()) {
-                Translations.add(file.readString(Charsets.UTF_8.name()))
-            }
-        }
-    }
 }
 

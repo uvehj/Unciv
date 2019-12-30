@@ -12,7 +12,7 @@ import com.unciv.logic.map.MapUnit
 import com.unciv.logic.trade.*
 import com.unciv.models.ruleset.VictoryType
 import com.unciv.models.ruleset.tech.Technology
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import kotlin.math.min
 
 class NextTurnAutomation{
@@ -170,7 +170,7 @@ class NextTurnAutomation{
 
     private fun chooseTechToResearch(civInfo: CivilizationInfo) {
         if (civInfo.tech.techsToResearch.isEmpty()) {
-            val researchableTechs = civInfo.gameInfo.ruleSet.Technologies.values
+            val researchableTechs = civInfo.gameInfo.ruleSet.technologies.values
                     .filter { !civInfo.tech.isResearched(it.name) && civInfo.tech.canBeResearched(it.name) }
             val techsGroups = researchableTechs.groupBy { it.cost }
             val costs = techsGroups.keys.sorted()
@@ -198,7 +198,7 @@ class NextTurnAutomation{
     private fun adoptPolicy(civInfo: CivilizationInfo) {
         while (civInfo.policies.canAdoptPolicy()) {
 
-            val adoptablePolicies = civInfo.gameInfo.ruleSet.PolicyBranches.values
+            val adoptablePolicies = civInfo.gameInfo.ruleSet.policyBranches.values
                     .flatMap { it.policies.union(listOf(it)) }
                     .filter { civInfo.policies.isAdoptable(it) }
 
@@ -436,7 +436,7 @@ class NextTurnAutomation{
     private fun reassignWorkedTiles(civInfo: CivilizationInfo) {
         for (city in civInfo.cities) {
             if (city.isPuppet && city.population.population > 9
-                    && city.resistanceCounter == 0) {
+                    && !city.isInResistance()) {
                 city.annexCity()
             }
 

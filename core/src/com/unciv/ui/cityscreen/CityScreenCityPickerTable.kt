@@ -5,7 +5,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.Table
 import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.badlogic.gdx.scenes.scene2d.ui.TextField
 import com.badlogic.gdx.utils.Align
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.utils.CameraStageBaseScreen
 import com.unciv.ui.utils.ImageGetter
 import com.unciv.ui.utils.onClick
@@ -46,7 +46,7 @@ class CityScreenCityPickerTable(val cityScreen: CityScreen) : Table(){
         }
 
 
-        if (city.resistanceCounter > 0) {
+        if (city.isInResistance()) {
             val resistanceImage = ImageGetter.getImage("StatIcons/Resistance")
             cityNameTable.add(resistanceImage).size(20f).padRight(5f)
         }

@@ -14,9 +14,10 @@ import com.unciv.UncivGame
 import com.unciv.logic.GameSaver
 import com.unciv.logic.civilization.CivilizationInfo
 import com.unciv.logic.civilization.diplomacy.DiplomaticStatus
+import com.unciv.models.Tutorial
 import com.unciv.models.ruleset.tile.ResourceType
-import com.unciv.models.ruleset.tr
 import com.unciv.models.ruleset.unit.UnitType
+import com.unciv.models.translations.tr
 import com.unciv.ui.VictoryScreen
 import com.unciv.ui.cityscreen.CityScreen
 import com.unciv.ui.pickerscreens.GreatPersonPickerScreen
@@ -47,14 +48,13 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
     val battleTable = BattleTable(this)
     val unitActionsTable = UnitActionsTable(this)
 
-    private val techPolicyandVictoryHolder = Table()
+    private val techPolicyAndVictoryHolder = Table()
     private val techButtonHolder = Table()
     private val diplomacyButtonWrapper = Table()
     private val nextTurnButton = createNextTurnButton()
     private val tutorialTaskTable=Table().apply { background=ImageGetter.getBackground(ImageGetter.getBlue().lerp(Color.BLACK, 0.5f)) }
 
     private val notificationsScroll: NotificationsScroll
-    var alertPopupIsOpen = false // if we have an alert popup and then we changed screens, the old one shouldn't affect us
     var shouldUpdate=false
 
     init {
@@ -73,21 +73,21 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
         techButtonHolder.onClick("paper") {
             game.setScreen(TechPickerScreen(viewingCiv))
         }
-        techPolicyandVictoryHolder.add(techButtonHolder)
+        techPolicyAndVictoryHolder.add(techButtonHolder)
 
         // Don't show policies until they become relevant
         if(viewingCiv.policies.adoptedPolicies.isNotEmpty() || viewingCiv.policies.canAdoptPolicy()) {
             val policyScreenButton = Button(skin)
             policyScreenButton.add(ImageGetter.getImage("PolicyIcons/Constitution")).size(30f).pad(15f)
             policyScreenButton.onClick { game.setScreen(PolicyPickerScreen(this)) }
-            techPolicyandVictoryHolder.add(policyScreenButton).pad(10f)
+            techPolicyAndVictoryHolder.add(policyScreenButton).pad(10f)
         }
 
         stage.addActor(tileMapHolder)
         stage.addActor(minimapWrapper)
         stage.addActor(topBar)
         stage.addActor(nextTurnButton)
-        stage.addActor(techPolicyandVictoryHolder)
+        stage.addActor(techPolicyAndVictoryHolder)
         stage.addActor(notificationsScroll)
         stage.addActor(tutorialTaskTable)
 
@@ -101,9 +101,6 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
         stage.addActor(battleTable)
 
         stage.addActor(unitActionsTable)
-
-//        displayTutorials("New_Game")
-//        displayTutorials("World_Map")
 
         createNextTurnButton() // needs civ table to be positioned
 
@@ -193,14 +190,11 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
         topBar.update(viewingCiv)
 
         updateTechButton()
-        techPolicyandVictoryHolder.pack()
-        techPolicyandVictoryHolder.setPosition(10f, topBar.y - techPolicyandVictoryHolder.height - 5f)
+        techPolicyAndVictoryHolder.pack()
+        techPolicyAndVictoryHolder.setPosition(10f, topBar.y - techPolicyAndVictoryHolder.height - 5f)
         updateDiplomacyButton(viewingCiv)
 
-
-        val isSomethingOpen = tutorials.isTutorialShowing || stage.actors.any { it is TradePopup }
-                || alertPopupIsOpen
-        if (!isSomethingOpen && isPlayersTurn) {
+        if (!hasVisibleDialogs() && isPlayersTurn) {
             when {
                 !gameInfo.oneMoreTurnMode && gameInfo.civilizations.any { it.victoryManager.hasWon() } -> game.setScreen(VictoryScreen())
                 viewingCiv.policies.freePolicies > 0 && viewingCiv.policies.canAdoptPolicy() -> game.setScreen(PolicyPickerScreen(this))
@@ -209,7 +203,7 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
                 viewingCiv.tradeRequests.isNotEmpty() -> TradePopup(this)
             }
         }
-        updateNextTurnButton(isSomethingOpen) // This must be before the notifications update, since its position is based on it
+        updateNextTurnButton(hasVisibleDialogs()) // This must be before the notifications update, since its position is based on it
         notificationsScroll.update(viewingCiv.notifications)
         notificationsScroll.setPosition(stage.width - notificationsScroll.width - 5f,
                 nextTurnButton.y - notificationsScroll.height - 5f)
@@ -239,8 +233,8 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
             return "Open the options table!\nClick the menu button (top left) > click 'Options'"
         if(!completedTasks.contains("Construct an improvement"))
             return "Construct an improvement!\nConstruct a Worker unit > Move to a Plains or Grassland tile > " +
-                    "\n Choose 'Create improvement' > Choose the farm > " +
-                    "\n Leave the worker there until it's finished"
+                    "\n Click 'Create improvement' (above the unit table, bottom left)" +
+                    "\n > Choose the farm > \n Leave the worker there until it's finished"
         if(!completedTasks.contains("Create a trade route")
                 && viewingCiv.citiesConnectedToCapital.any { it.civInfo==viewingCiv })
             game.settings.addCompletedTutorialTask("Create a trade route")
@@ -261,30 +255,25 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
     }
 
     private fun displayTutorialsOnUpdate() {
-        if (UncivGame.Current.settings.hasCrashedRecently) {
-            displayTutorials("_GameCrashed")
-            UncivGame.Current.settings.tutorialsShown.remove("_GameCrashed")
-            UncivGame.Current.settings.hasCrashedRecently = false
-            UncivGame.Current.settings.save()
-        }
+        UncivGame.Current.crashController.showDialogIfNeeded()
 
-        displayTutorials("Introduction")
+        displayTutorial(Tutorial.Introduction)
         if (!UncivGame.Current.settings.tutorialsShown.contains("_EnemyCityNeedsConqueringWithMeleeUnit")) {
             for (enemyCity in viewingCiv.diplomacy.values.filter { it.diplomaticStatus == DiplomaticStatus.War }
                     .map { it.otherCiv() }.flatMap { it.cities }) {
                 if (enemyCity.health == 1 && enemyCity.getCenterTile().getTilesInDistance(2)
                                 .any { it.getUnits().any { unit -> unit.civInfo == viewingCiv} })
-                    displayTutorials("_EnemyCityNeedsConqueringWithMeleeUnit")
+                    displayTutorial(Tutorial.EnemyCityNeedsConqueringWithMeleeUnit)
             }
         }
         if(viewingCiv.cities.any { it.hasJustBeenConquered })
-            displayTutorials("After_Conquering")
+            displayTutorial(Tutorial.AfterConquering)
 
         if (gameInfo.getCurrentPlayerCivilization().getCivUnits().any { it.health < 100 })
-            displayTutorials("Injured_Units")
+            displayTutorial(Tutorial.InjuredUnits)
 
         if (gameInfo.getCurrentPlayerCivilization().getCivUnits().any { it.name == Constants.worker })
-            displayTutorials("Workers")
+            displayTutorial(Tutorial.Workers)
     }
 
     private fun updateDiplomacyButton(civInfo: CivilizationInfo) {
@@ -292,7 +281,7 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
         if(civInfo.getKnownCivs()
                         .filterNot { it.isDefeated() || it==viewingCiv || it.isBarbarian() }
                         .any()) {
-            displayTutorials("_OtherCivEncountered")
+            displayTutorial(Tutorial.OtherCivEncountered)
             val btn = TextButton("Diplomacy".tr(), skin)
             btn.onClick { UncivGame.Current.setScreen(DiplomacyScreen(viewingCiv)) }
             btn.label.setFontSize(30)
@@ -300,14 +289,14 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
             diplomacyButtonWrapper.add(btn)
         }
         diplomacyButtonWrapper.pack()
-        diplomacyButtonWrapper.y = techPolicyandVictoryHolder.y -20 - diplomacyButtonWrapper.height
+        diplomacyButtonWrapper.y = techPolicyAndVictoryHolder.y - 20 - diplomacyButtonWrapper.height
     }
 
     private fun updateTechButton() {
         techButtonHolder.isVisible = viewingCiv.cities.isNotEmpty()
         techButtonHolder.clearChildren()
 
-        val researchableTechs = viewingCiv.gameInfo.ruleSet.Technologies.values.filter { !viewingCiv.tech.isResearched(it.name) && viewingCiv.tech.canBeResearched(it.name) }
+        val researchableTechs = viewingCiv.gameInfo.ruleSet.technologies.values.filter { !viewingCiv.tech.isResearched(it.name) && viewingCiv.tech.canBeResearched(it.name) }
         if (viewingCiv.tech.currentTechnology() == null && researchableTechs.isEmpty())
             viewingCiv.tech.techsToResearch.add(Constants.futureTech)
 
@@ -397,8 +386,7 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
                     }
                 }
             } catch (ex: Exception) {
-                game.settings.hasCrashedRecently = true
-                game.settings.save()
+                UncivGame.Current.crashController.crashOccurred()
                 throw ex
             }
 
@@ -483,29 +471,30 @@ class WorldScreen(val viewingCiv:CivilizationInfo) : CameraStageBaseScreen() {
 
     private fun showTutorialsOnNextTurn(){
         val shownTutorials = UncivGame.Current.settings.tutorialsShown
-        displayTutorials("_Slow_Start")
+        displayTutorial(Tutorial.SlowStart)
         if("_BarbarianEncountered" !in shownTutorials
                 && viewingCiv.viewableTiles.any { it.getUnits().any { unit -> unit.civInfo.isBarbarian() } })
-            displayTutorials("_BarbarianEncountered")
-        if(viewingCiv.cities.size > 2) displayTutorials("Roads_and_Railroads")
-        if(viewingCiv.getHappiness() < 5) displayTutorials("Happiness")
-        if(viewingCiv.getHappiness() < 0) displayTutorials("Unhappiness")
-        if(viewingCiv.goldenAges.isGoldenAge()) displayTutorials("Golden_Age")
-        if(gameInfo.turns >= 50 && UncivGame.Current.settings.checkForDueUnits) displayTutorials("Idle_Units")
-        if(gameInfo.turns >= 100) displayTutorials("Contact_Me")
+            displayTutorial(Tutorial.BarbarianEncountered)
+        if(viewingCiv.cities.size > 2) displayTutorial(Tutorial.RoadsAndRailroads)
+        if(viewingCiv.getHappiness() < 5) displayTutorial(Tutorial.Happiness)
+        if(viewingCiv.getHappiness() < 0) displayTutorial(Tutorial.Unhappiness)
+        if(viewingCiv.goldenAges.isGoldenAge()) displayTutorial(Tutorial.GoldenAge)
+        if(gameInfo.turns >= 50 && UncivGame.Current.settings.checkForDueUnits) displayTutorial(Tutorial.IdleUnits)
+        if(gameInfo.turns >= 100) displayTutorial(Tutorial.ContactMe)
         val resources = viewingCiv.getCivResources()
-        if(resources.any { it.resource.resourceType==ResourceType.Luxury }) displayTutorials("Luxury_Resource")
-        if(resources.any { it.resource.resourceType==ResourceType.Strategic}) displayTutorials("Strategic_Resource")
+        if(resources.any { it.resource.resourceType==ResourceType.Luxury }) displayTutorial(Tutorial.LuxuryResource)
+        if(resources.any { it.resource.resourceType==ResourceType.Strategic}) displayTutorial(Tutorial.StrategicResource)
         if("Enemy_City" !in shownTutorials
                 && viewingCiv.getKnownCivs().filter { viewingCiv.isAtWarWith(it) }
                         .flatMap { it.cities }.any { viewingCiv.exploredTiles.contains(it.location) })
-            displayTutorials("Enemy_City")
+            displayTutorial(Tutorial.EnemyCity)
         if(viewingCiv.containsBuildingUnique("Enables construction of Spaceship parts"))
-            displayTutorials("Apollo_Program")
+            displayTutorial(Tutorial.ApolloProgram)
         if(viewingCiv.getCivUnits().any { it.type == UnitType.Siege })
-            displayTutorials("Siege_Units")
+            displayTutorial(Tutorial.SiegeUnits)
         if(viewingCiv.tech.getTechUniques().contains("Enables embarkation for land units"))
-            displayTutorials("Embarking")
+            displayTutorial(Tutorial.Embarking)
     }
 
 }
+

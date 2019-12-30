@@ -149,6 +149,7 @@
 		gold: 1,
 		science: 2,
 		occursOn: ["Coast"],
+		turnsInto: "Coast",
 		impassable: true,
 		unbuildable: true,
 		weight: 10
@@ -159,6 +160,7 @@
 		science: 2,
 		happiness: 3,
 		occursOn: ["Grassland","Plains","Tundra","Mountain"],
+		turnsInto: "Mountain",
 		impassable: true,
 		unbuildable: true,
 		weight: 10
@@ -168,8 +170,10 @@
 		type: "NaturalWonder",
 		culture: 5,
 		occursOn: ["Plains"],
+		turnsInto: "Plains",
 		impassable: true,
 		unbuildable: true,
+		uniques: ["Grants 500 Gold to the first civilization to discover it"],
 		weight: 2
 	},
 	{
@@ -177,16 +181,19 @@
 		type: "NaturalWonder",
 		happiness: 10,
 		occursOn: ["Plains"],
+		turnsInto: "Plains",
 		impassable: true,
 		unbuildable: true,
+		uniques: ["Grants Rejuvenation (all healing effects doubled) to adjacent military land units for the rest of the game"],
 		weight: 1
-	}
-	/** Yukky tile images
+	},
 	{
-		name: "Krakatoa",
+		name: "Grand Mesa",
 		type: "NaturalWonder",
-		science: 5,
-		occursOn: ["Ocean"],
+		production: 2,
+		gold: 3,
+		occursOn: ["Plains","Desert","Tundra"],
+		turnsInto: "Mountain",
 		impassable: true,
 		unbuildable: true,
 		weight: 10
@@ -197,6 +204,17 @@
 		gold: 1,
 		culture: 5,
 		occursOn: ["Grassland","Plains"],
+		turnsInto: "Mountain",
+		impassable: true,
+		unbuildable: true,
+		weight: 10
+	},
+	{
+		name: "Krakatoa",
+		type: "NaturalWonder",
+		science: 5,
+		occursOn: ["Ocean"],
+		turnsInto: "Mountain",
 		impassable: true,
 		unbuildable: true,
 		weight: 10
@@ -207,6 +225,7 @@
 		food: 2,
 		gold: 5,
 		occursOn: ["Grassland"],
+		turnsInto: "Mountain",
 		impassable: true,
 		unbuildable: true,
 		weight: 10
@@ -216,6 +235,7 @@
 		type: "NaturalWonder",
 		gold: 10,
 		occursOn: ["Plains","Mountain"],
+		turnsInto: "Mountain",
 		impassable: true,
 		unbuildable: true,
 		weight: 5
@@ -226,19 +246,9 @@
 		gold: 2,
 		science: 3,
 		occursOn: ["Desert","Tundra"],
+		turnsInto: "Mountain",
 		impassable: true,
 		unbuildable: true,
 		weight: 10
 	},
-	{
-		name: "Grand Mesa",
-		type: "NaturalWonder",
-		production: 2,
-		gold: 3,
-		occursOn: ["Plains","Desert","Tundra"],
-		impassable: true,
-		unbuildable: true,
-		weight: 10
-	},
-	*/
 ]	

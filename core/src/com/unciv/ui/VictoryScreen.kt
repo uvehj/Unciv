@@ -7,7 +7,7 @@ import com.badlogic.gdx.scenes.scene2d.ui.TextButton
 import com.unciv.UncivGame
 import com.unciv.logic.civilization.CivilizationInfo
 import com.unciv.models.ruleset.VictoryType
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.tr
 import com.unciv.ui.newgamescreen.NewGameScreen
 import com.unciv.ui.pickerscreens.PickerScreen
 import com.unciv.ui.pickerscreens.PolicyPickerScreen
@@ -109,7 +109,7 @@ class VictoryScreen : PickerScreen() {
         if(dominationVictoryEnabled) myVictoryStatusTable.add(conquestVictoryColumn())
         myVictoryStatusTable.row()
         if(scientificVictoryEnabled) myVictoryStatusTable.add("Complete all the spaceship parts\n to win!".toLabel())
-        if(culturalVictoryEnabled) myVictoryStatusTable.add("Complete 4 policy branches\n to win!".toLabel())
+        if(culturalVictoryEnabled) myVictoryStatusTable.add("Complete 5 policy branches\n to win!".toLabel())
         if(dominationVictoryEnabled) myVictoryStatusTable.add("Destroy all enemies\n to win!".toLabel())
 
         contentsTable.clear()
@@ -133,7 +133,7 @@ class VictoryScreen : PickerScreen() {
     fun culturalVictoryColumn():Table{
         val t=Table()
         t.defaults().pad(5f)
-        for(branch in playerCivInfo.gameInfo.ruleSet.PolicyBranches.values) {
+        for(branch in playerCivInfo.gameInfo.ruleSet.policyBranches.values) {
             val finisher = branch.policies.last().name
             t.add(getMilestone(finisher, playerCivInfo.policies.isAdopted(finisher))).row()
         }
@@ -202,11 +202,6 @@ class VictoryScreen : PickerScreen() {
         for (entry in civsToBranchesCompleted) {
             val civToBranchesHaveCompleted=EmpireOverviewScreen.getCivGroup(entry.civ, " - " + entry.branchesCompleted, playerCivInfo)
             policyVictoryColumn.add(civToBranchesHaveCompleted).row()
-            civToBranchesHaveCompleted.touchable= Touchable.enabled
-            civToBranchesHaveCompleted.onClick {
-                game.setScreen(PolicyPickerScreen(UncivGame.Current.worldScreen,entry.civ, false))
-                dispose()
-            }
         }
         return policyVictoryColumn
     }

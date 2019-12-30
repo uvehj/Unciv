@@ -7,8 +7,8 @@ import com.unciv.logic.city.IConstruction
 import com.unciv.logic.civilization.CivilizationInfo
 import com.unciv.logic.map.MapUnit
 import com.unciv.models.ruleset.Ruleset
-import com.unciv.models.ruleset.Translations
-import com.unciv.models.ruleset.tr
+import com.unciv.models.translations.Translations
+import com.unciv.models.translations.tr
 import com.unciv.models.stats.INamed
 
 // This is BaseUnit because Unit is already a base Kotlin class and to avoid mixing the two up
@@ -41,7 +41,7 @@ class BaseUnit : INamed, IConstruction {
     fun getShortDescription(): String {
         val infoList= mutableListOf<String>()
         for(unique in uniques)
-            infoList+=Translations.translateBonusOrPenalty(unique)
+            infoList+= Translations.translateBonusOrPenalty(unique)
         for(promotion in promotions)
             infoList += promotion.tr()
         if(strength!=0) infoList += "{Strength}: $strength".tr()
@@ -131,7 +131,7 @@ class BaseUnit : INamed, IConstruction {
         if (requiredTech!=null && !civInfo.tech.isResearched(requiredTech!!)) return "$requiredTech not researched"
         if (obsoleteTech!=null && civInfo.tech.isResearched(obsoleteTech!!)) return "Obsolete by $obsoleteTech"
         if (uniqueTo!=null && uniqueTo!=civInfo.civName) return "Unique to $uniqueTo"
-        if (civInfo.gameInfo.ruleSet.Units.values.any { it.uniqueTo==civInfo.civName && it.replaces==name }) return "Our unique unit replaces this"
+        if (civInfo.gameInfo.ruleSet.units.values.any { it.uniqueTo==civInfo.civName && it.replaces==name }) return "Our unique unit replaces this"
         if (!UncivGame.Current.settings.nuclearWeaponEnabled
                 && (name == "Manhattan Project" || uniques.contains("Requires Manhattan Project"))) return "Disabled by setting"
         if (uniques.contains("Requires Manhattan Project") && !civInfo.containsBuildingUnique("Enables nuclear weapon"))

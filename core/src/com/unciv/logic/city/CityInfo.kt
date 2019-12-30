@@ -24,7 +24,7 @@ import kotlin.math.roundToInt
 
 class CityInfo {
     @Transient lateinit var civInfo: CivilizationInfo
-    @Transient lateinit var ccenterTile:TileInfo  // cached for better performance
+    @Transient lateinit private var centerTileInfo:TileInfo  // cached for better performance
     @Transient val range = 2
     @Transient lateinit var tileMap: TileMap
     @Transient lateinit var tilesInRange:HashSet<TileInfo>
@@ -115,9 +115,14 @@ class CityInfo {
 
 
 
-    fun getCenterTile(): TileInfo = ccenterTile
+    fun getCenterTile(): TileInfo = centerTileInfo
     fun getTiles(): List<TileInfo> = tiles.map { tileMap[it] }
     fun getWorkableTiles() = getTiles().filter { it in tilesInRange }
+
+    fun isCapital() = cityConstructions.isBuilt("Palace")
+    fun isConnectedToCapital() = civInfo.citiesConnectedToCapital.contains(this)
+    fun isInResistance() = resistanceCounter>0
+
 
     fun getRuleset() = civInfo.gameInfo.ruleSet
 
@@ -134,7 +139,7 @@ class CityInfo {
         }
 
         for (building in cityConstructions.getBuiltBuildings().filter { it.requiredResource != null }) {
-            val resource = getRuleset().TileResources[building.requiredResource]!!
+            val resource = getRuleset().tileResources[building.requiredResource]!!
             cityResources.add(resource, -1, "Buildings")
         }
 
@@ -161,7 +166,7 @@ class CityInfo {
 
         // Even if the improvement exists (we conquered an enemy city or somesuch) or we have a city on it, we won't get the resource until the correct tech is researched
         if (resource.improvement!=null){
-            val improvement = getRuleset().TileImprovements[resource.improvement!!]!!
+            val improvement = getRuleset().tileImprovements[resource.improvement!!]!!
             if(improvement.techRequired!=null && !civInfo.tech.isResearched(improvement.techRequired!!)) return 0
         }
 
@@ -224,9 +229,6 @@ class CityInfo {
         return stats
     }
 
-    fun isCapital() = cityConstructions.isBuilt("Palace")
-    fun isConnectedToCapital() = civInfo.citiesConnectedToCapital.contains(this)
-
     internal fun getMaxHealth(): Int {
         return 200 + cityConstructions.getBuiltBuildings().sumBy { it.cityHealth }
     }
@@ -237,7 +239,7 @@ class CityInfo {
     //region state-changing functions
     fun setTransients() {
         tileMap = civInfo.gameInfo.tileMap
-        ccenterTile = tileMap[location]
+        centerTileInfo = tileMap[location]
         tilesInRange = getCenterTile().getTilesInDistance( 3).toHashSet()
         population.cityInfo = this
         expansion.cityInfo = this
@@ -254,7 +256,7 @@ class CityInfo {
         cityStats.update()
         tryUpdateRoadStatus()
         attackedThisTurn = false
-        if (resistanceCounter > 0) resistanceCounter--
+        if (isInResistance()) resistanceCounter--
 
         if (isPuppet) reassignWorkers()
     }
@@ -307,8 +309,10 @@ class CityInfo {
                 unit.movement.teleportToClosestMoveableTile()
         }
 
-        civInfo.cities = civInfo.cities.toMutableList().apply { remove(this@CityInfo) }
+        // The relinquish ownership MUST come before removing the city,
+        // because it updates the city stats which assumes there is a capital, so if you remove the capital it crashes
         getTiles().forEach { expansion.relinquishOwnership(it) }
+        civInfo.cities = civInfo.cities.toMutableList().apply { remove(this@CityInfo) }
         getCenterTile().improvement="City ruins"
 
         if (isCapital() && civInfo.cities.isNotEmpty()) // Move the capital if destroyed (by a nuke or by razing)
@@ -354,6 +358,12 @@ class CityInfo {
         val currentPopulation = population.population
         val percentageOfCivPopulationInThatCity = currentPopulation * 100f / civInfo.cities.sumBy { it.population.population }
         val aggroGenerated = 10f + percentageOfCivPopulationInThatCity.roundToInt()
+
+        // How can you conquer a city but not know the civ you conquered it from?!
+        // I don't know either, but some of our players have managed this, and crashed their game!
+        if(!conqueringCiv.knows(oldCiv))
+            conqueringCiv.meetCivilization(oldCiv)
+
         oldCiv.getDiplomacyManager(conqueringCiv)
                 .addModifier(DiplomaticModifiers.CapturedOurCities, -aggroGenerated)
 
@@ -397,6 +407,11 @@ class CityInfo {
         val percentageOfCivPopulationInThatCity = population.population *
                 100f / (foundingCiv.cities.sumBy { it.population.population } + population.population)
         val respecForLiberatingOurCity = 10f + percentageOfCivPopulationInThatCity.roundToInt()
+
+        // In order to get "plus points" in Diplomacy, you have to establish diplomatic relations if you haven't yet
+        if(!conqueringCiv.knows(foundingCiv))
+            conqueringCiv.meetCivilization(foundingCiv)
+
         if(foundingCiv.isMajorCiv()) {
             foundingCiv.getDiplomacyManager(conqueringCiv)
                     .addModifier(DiplomaticModifiers.CapturedOurCities, respecForLiberatingOurCity)
@@ -433,12 +448,17 @@ class CityInfo {
         for(building in cityConstructions.getBuiltBuildings().filter { it.requiredBuildingInAllCities!=null })
             cityConstructions.removeBuilding(building.name)
 
-        // Remove/relocate palace
+        // Remove/relocate palace for old Civ
         if(cityConstructions.isBuilt("Palace")){
             cityConstructions.removeBuilding("Palace")
             if(oldCiv.cities.isNotEmpty()){
                 oldCiv.cities.first().cityConstructions.addBuilding("Palace") // relocate palace
             }
+        }
+
+        // Locate palace for newCiv if this is the only city they have
+        if (newCivInfo.cities.count() == 1) {
+            cityConstructions.addBuilding("Palace")
         }
 
         isBeingRazed=false
@@ -468,15 +488,15 @@ class CityInfo {
 
     private fun tryUpdateRoadStatus(){
         if(getCenterTile().roadStatus==RoadStatus.None
-                && getRuleset().TileImprovements["Road"]!!.techRequired in civInfo.tech.techsResearched)
+                && getRuleset().tileImprovements["Road"]!!.techRequired in civInfo.tech.techsResearched)
             getCenterTile().roadStatus=RoadStatus.Road
 
         else if(getCenterTile().roadStatus!=RoadStatus.Railroad
-                && getRuleset().TileImprovements["Railroad"]!!.techRequired in civInfo.tech.techsResearched)
+                && getRuleset().tileImprovements["Railroad"]!!.techRequired in civInfo.tech.techsResearched)
             getCenterTile().roadStatus=RoadStatus.Railroad
     }
 
-    fun getGoldForSellingBuilding(buildingName:String) = getRuleset().Buildings[buildingName]!!.cost / 10
+    fun getGoldForSellingBuilding(buildingName:String) = getRuleset().buildings[buildingName]!!.cost / 10
 
     fun sellBuilding(buildingName:String){
         cityConstructions.builtBuildings.remove(buildingName)

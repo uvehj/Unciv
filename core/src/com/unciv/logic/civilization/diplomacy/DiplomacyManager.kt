@@ -9,6 +9,9 @@ import com.unciv.logic.civilization.PopupAlert
 import com.unciv.logic.trade.Trade
 import com.unciv.logic.trade.TradeType
 import com.unciv.models.ruleset.tile.ResourceSupplyList
+import kotlin.math.ceil
+import kotlin.math.max
+import kotlin.math.min
 
 enum class RelationshipLevel{
     Unforgivable,
@@ -78,12 +81,16 @@ class DiplomacyManager() {
     /** For city-states. Influence is saved in the CITY STATE -> major civ Diplomacy, NOT in the major civ -> cty state diplomacy. */
     var influence = 0f
 
+    /** For city-states. Resting point is the value of Influence at which it ceases changing by itself */
+    var restingPoint = 0f
+
     fun clone(): DiplomacyManager {
         val toReturn = DiplomacyManager()
         toReturn.otherCivName=otherCivName
         toReturn.diplomaticStatus=diplomaticStatus
         toReturn.trades.addAll(trades.map { it.clone() })
         toReturn.influence = influence
+        toReturn.restingPoint = restingPoint
         toReturn.flagsCountdown.putAll(flagsCountdown)
         toReturn.diplomaticModifiers.putAll(diplomaticModifiers)
         return toReturn
@@ -146,6 +153,26 @@ class DiplomacyManager() {
         return RelationshipLevel.Neutral
     }
 
+    /** Returns the number of turns to degrade from Ally or from Friend */
+    fun getTurnsToRelationshipChange(): Int {
+        if (otherCiv().isCityState())
+            return otherCivDiplomacy().getTurnsToRelationshipChange()
+
+        if (civInfo.isCityState() && !otherCiv().isCityState()) {
+            val hasCityStateInfluenceBonus =
+                    otherCiv().nation.unique == "City-State Influence degrades at half and recovers at twice the normal rate"
+            val dropPerTurn = if(hasCityStateInfluenceBonus) .5f else 1f
+
+            if (relationshipLevel() >= RelationshipLevel.Ally)
+                return ceil((influence - 60f) / dropPerTurn).toInt() + 1
+            else if (relationshipLevel() >= RelationshipLevel.Friend)
+                return ceil((influence - 30f) / dropPerTurn).toInt() + 1
+            else
+                return 0
+        }
+        return 0
+    }
+
     fun canDeclareWar() = (turnsToPeaceTreaty()==0 && diplomaticStatus != DiplomaticStatus.War)
 
     fun goldPerTurn():Int{
@@ -164,10 +191,10 @@ class DiplomacyManager() {
         for(trade in trades){
             for(offer in trade.ourOffers)
                 if(offer.type== TradeType.Strategic_Resource || offer.type== TradeType.Luxury_Resource)
-                    counter.add(civInfo.gameInfo.ruleSet.TileResources[offer.name]!!,-offer.amount,"Trade")
+                    counter.add(civInfo.gameInfo.ruleSet.tileResources[offer.name]!!,-offer.amount,"Trade")
             for(offer in trade.theirOffers)
                 if(offer.type== TradeType.Strategic_Resource || offer.type== TradeType.Luxury_Resource)
-                    counter.add(civInfo.gameInfo.ruleSet.TileResources[offer.name]!!,offer.amount,"Trade")
+                    counter.add(civInfo.gameInfo.ruleSet.tileResources[offer.name]!!,offer.amount,"Trade")
         }
         return counter
     }
@@ -214,19 +241,29 @@ class DiplomacyManager() {
         updateHasOpenBorders()
         nextTurnDiplomaticModifiers()
         nextTurnFlags()
-        nextTurnCityStateInfluence()
+        if (civInfo.isCityState() && !otherCiv().isCityState())
+            nextTurnCityStateInfluence()
     }
 
     private fun nextTurnCityStateInfluence() {
+        val initialRelationshipLevel = relationshipLevel()
+
         val hasCityStateInfluenceBonus =
-                civInfo.nation.unique == "City-State Influence degrades at half and recovers at twice the normal rate"
-        if (influence > 1) {
-            if (hasCityStateInfluenceBonus) influence -= 0.5f
-            else influence -= 1
-        } else if (influence < 1) {
-            if (hasCityStateInfluenceBonus) influence += 2
-            else influence += 1
-        } else influence = 0f
+                otherCiv().nation.unique == "City-State Influence degrades at half and recovers at twice the normal rate"
+        val increment = if (hasCityStateInfluenceBonus) 2f else 1f
+        val decrement = if (hasCityStateInfluenceBonus) .5f else 1f
+
+        if (influence > restingPoint)
+            influence = max(restingPoint, influence - decrement)
+        else if (influence < restingPoint)
+            influence = min(restingPoint, influence + increment)
+        else influence = restingPoint
+
+        if (getTurnsToRelationshipChange() == 1)
+            otherCiv().addNotification("Your relationship with [${civInfo.civName}] is about to degrade", null, Color.GOLD)
+
+        if (initialRelationshipLevel >= RelationshipLevel.Friend && initialRelationshipLevel != relationshipLevel())
+            otherCiv().addNotification("Your relationship with [${civInfo.civName}] degraded", null, Color.GOLD)
     }
 
     private fun nextTurnFlags() {
@@ -358,6 +395,7 @@ class DiplomacyManager() {
         if (!otherCiv.isCityState()) {
             for (thirdCiv in otherCiv.getKnownCivs()) {
                 if (thirdCiv.isCityState() && thirdCiv.getAllyCiv() == otherCiv.civName
+                        && !thirdCiv.isDefeated()
                         && thirdCiv.knows(civInfo)
                         && thirdCiv.getDiplomacyManager(civInfo).canDeclareWar()) {
                     thirdCiv.getDiplomacyManager(civInfo).declareWar()

@@ -10,8 +10,8 @@ import com.unciv.UncivGame
 import com.unciv.logic.city.CityInfo
 import com.unciv.logic.city.SpecialConstruction
 import com.unciv.models.ruleset.Building
-import com.unciv.models.ruleset.tr
 import com.unciv.models.ruleset.unit.BaseUnit
+import com.unciv.models.translations.tr
 import com.unciv.ui.utils.*
 import com.unciv.ui.worldscreen.optionstable.YesNoPopupTable
 
@@ -94,7 +94,7 @@ class ConstructionsTable(val cityScreen: CityScreen) : Table(CameraStageBaseScre
         constructionPickerTable.background = ImageGetter.getBackground(Color.BLACK)
 
         val units = ArrayList<Table>()
-        for (unit in city.getRuleset().Units.values.filter { it.shouldBeDisplayed(cityConstructions) }) {
+        for (unit in city.getRuleset().units.values.filter { it.shouldBeDisplayed(cityConstructions) }) {
             val turnsToUnit = cityConstructions.turnsToConstruction(unit.name)
             units += getProductionButton(unit.name,
                     unit.name.tr() + "\r\n" + turnsToUnit + (if(turnsToUnit>1) " {turns}".tr() else " {turn}".tr()),
@@ -107,7 +107,7 @@ class ConstructionsTable(val cityScreen: CityScreen) : Table(CameraStageBaseScre
         val buildableNationalWonders = ArrayList<Table>()
         val buildableBuildings = ArrayList<Table>()
 
-        for (building in city.getRuleset().Buildings.values) {
+        for (building in city.getRuleset().buildings.values) {
             if (!building.shouldBeDisplayed(cityConstructions) && building.name != cityConstructions.currentConstruction) continue
             val turnsToBuilding = cityConstructions.turnsToConstruction(building.name)
             val productionTextButton = getProductionButton(building.name,
@@ -152,7 +152,7 @@ class ConstructionsTable(val cityScreen: CityScreen) : Table(CameraStageBaseScre
 
         row()
         val purchaseConstructionButton: TextButton
-        if (construction.canBePurchased() && !city.isPuppet) {
+        if (!city.isPuppet && !city.isInResistance() && construction.canBePurchased()) {
             val constructionGoldCost = construction.getGoldCost(city.civInfo)
             purchaseConstructionButton = TextButton("Buy for [$constructionGoldCost] gold".tr(), CameraStageBaseScreen.skin)
             purchaseConstructionButton.onClick("coin") {
